@@ -1,0 +1,187 @@
+---
+title: 'Parameteric Tests: Comparison Analysis'
+author: "Aliu Adebiyi - Alisonia StatGuide"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document:
+    df_print: paged
+---
+
+This is a noteboook created by Aliu Adebiyi, the Founder of [Alisonia StatGuide](https://www.linkedin.com/in/adebiyiali/). Please, do not plagiarize my contents. Use for learning purpose only.  
+
+# Parametric Tests - Comparision:
+
+- In this notebook, I'll describe basic types of comparison test using sample or mock data \
+- The tests described are t-test (independent sample and dependent otherwise known as paired/matched sample), and one-way analysis of variance (ANOVA)
+- All test's assumptions are assumed to be satisfied or wherein stated otherwise \  
+- This is just a practice. In real-life events, non-parametric tests should be adopted if parametric assumptions fail \
+- This notebook used a daphnia.csv file
+
+## Libaries used
+
+```{r}
+library(readxl)            #for reading excel data
+library(tidyverse)         #for data manipulation
+library(ggplot2)           #for graphics
+library(ggpubr)            #for graphics
+library(caret)             
+library(rstatix)
+```
+
+## Exploring the data
+```{r}
+df <- read.csv("daphnia.csv", header = T)
+head(df)
+```
+
+```{r}
+str(df)
+```
+
+```{r}
+#Convert the character columns to factors
+df <- df %>% mutate_if(is.character, as.factor)
+
+#Display the levels of each variable
+sapply(df, function(x) if (is.factor(x)) levels(x) else "Is numeric") 
+```
+
+## Two-sample t-test - Independent
+- Data types: DV(scale, e.g. *growth_rate*) IV(two-level categorical variable such as *water -Tyne/Wear*) \
+- Independent of observations, that is, level came from different groups
+
+```{r}
+#1. Exploring the target variables
+ggplot(df, aes(x = water, y = growth_rate, fill = water)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Growth Rate by Water Source", x = "Water Source", y = "Growth Rate") +
+  theme_bw()
+```
+```{r}
+### 2. Summary Statistics of Growth Rate by Water
+summary_stats <- df %>%
+  group_by(water) %>%
+  summarise(
+    Mean = mean(growth_rate),
+    Median = median(growth_rate),
+    SD = sd(growth_rate),
+    Min = min(growth_rate),
+    Max = max(growth_rate),
+    .groups = 'drop'
+  )
+print(summary_stats)
+```
+```{r}
+#3. Perform the t-test
+t_test <- t.test(growth_rate ~ water, data = df, var.equal = TRUE)
+print(t_test)
+```
+
+**REPORT** \
+To examine whether there is a significant difference in growth rates between the two water sources, Tyne and\ Wear, an independent samples t-test was conducted. The analysis compared the mean growth rates of the two groups. \
+
+The results of the t-test indicated that there was no statistically significant difference in the growth rates between the two water sources, *t*(70) = -1.10, *p* = .276. The mean growth rate for the Tyne group (*M* = 3.69) was slightly lower than that of the Wear group (*M* = 4.02). However, the 95% confidence interval for the difference in means *[-0.94, 0.27]* includes *zero*, further suggesting that there is no significant difference.\
+
+In conclusion, the data do not provide evidence to support a difference in growth rates between water sources Tyne and Wear.
+
+# Two-sample t-test - Dependent
+- Data types: DV(scale, e.g. *height*) IV(two-level categorical variable such as *before/after*) \
+- Dependent observations, that is, levels came from same group
+
+```{r}
+#1. Summary statistics
+summary_stats <- df %>%
+  summarise(
+    mean_before = mean(height_b4_fert, na.rm = TRUE),
+    sd_before = sd(height_b4_fert, na.rm = TRUE),
+    mean_after = mean(height_after_fert, na.rm = TRUE),
+    sd_after = sd(height_after_fert, na.rm = TRUE),
+    n = n()
+  )
+
+print(summary_stats)
+```
+
+```{r}
+# 2. Paired t-test
+t_test_result <- t.test(df$height_b4_fert, df$height_after_fert, paired = TRUE)
+
+# Print t-test results
+print(t_test_result)
+```
+
+**REPORT** \
+A paired-samples t-test was conducted to compare the mean heights of plants before fertilizer application and after fertilizer application. The results indicated a statistically significant difference between the two conditions, *t*(71)=−5.168, *p*<.001. The mean difference in height (*M* = −0.230, 95% *CI*: [-0.319, -0.141]) suggests that plants were, on average, shorter before the application of fertilizer compared to after the application. \
+
+This finding indicates that fertilizer application had a significant effect on plant height, with plants growing taller after receiving fertilizer. The negative mean difference reflects the increase in plant height post-application. These results support the hypothesis that fertilizer application enhances plant growth.
+
+# One-way Analysis of Variance
+- Data types: DV(scale, e.g. *growth_rate*) IV(three or more levels categorical variable such as *daphnia*) \
+- Independent observations, that is, levels came from different groups
+- If levels come from the same group, run Repeated measures ANOVA (not cover here)
+
+```{r}
+#1. Explore the target variables
+ggplot(df, aes(x = daphnia, y = growth_rate, fill = daphnia)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of Growth Rate by Daphnia Group",
+       x = "Daphnia Clone",
+       y = "Growth Rate") +
+  theme_bw() +
+  theme(legend.position = "none")
+```
+```{r}
+#2. Summary statistics
+summary_stats <- df %>%
+  group_by(daphnia) %>%
+  summarise(
+    Mean = mean(growth_rate, na.rm = TRUE),
+    SD = sd(growth_rate, na.rm = TRUE),
+    Median = median(growth_rate, na.rm = TRUE),
+    Min = min(growth_rate, na.rm = TRUE),
+    Max = max(growth_rate, na.rm = TRUE)
+  )
+
+print(summary_stats)
+```
+```{r}
+#3 Run the test ANOVA
+anova_result <- aov(growth_rate ~ daphnia, data = df)
+
+# ANOVA summary
+summary(anova_result)
+```
+**RESULT** \
+
+A one-way ANOVA was conducted to compare the effect of different Daphnia clones on plant growth rate. The analysis revealed a statistically significant effect of Daphnia clone on growth rate, *F*(2,69)=17.33, *p*<.001. This indicates that the growth rate differs significantly across the three Daphnia clones. \
+
+Since the overall test was significant, pairwise comparisons are necessary to identify which specific groups differ from one another. The boxplot below visually represents the growth rates for each Daphnia group, with pairwise comparisons of the differences in means included. These comparisons provide further insight into how growth rates vary between the clones.
+
+```{r}
+res.aov <- anova_test(data = df, dv = growth_rate,  between = daphnia)
+bxp_anova <- ggboxplot(df, x = "daphnia", y = "growth_rate") + theme_bw()
+
+pwc_anova <- df %>%
+   pairwise_t_test(
+      growth_rate~ daphnia, paired = FALSE,
+      p.adjust.method = "bonferroni"
+   )
+pwc_anova
+
+pwc_anova <- pwc_anova %>% add_xy_position(x = "daphnia")
+
+bxp_anova + 
+   stat_pvalue_manual(pwc_anova) +
+   labs(
+      subtitle = get_test_label(res.aov, detailed = TRUE),
+      caption = get_pwc_label(pwc_anova)
+   )
+```
+
+
+## Aliu Adebiyi 
+Statistician and Data Scientist\
+alisoniastatguide@gmail.com \
+\
+*All rights reserved*
